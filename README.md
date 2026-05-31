@@ -74,8 +74,9 @@ services:
 The Compose example starts the entrypoint as root, then immediately launches
 aria2 as `PUID:PGID`. It drops Linux capabilities except the `SETUID` and
 `SETGID` permissions needed for that handoff, enables `no-new-privileges`, uses
-a read-only root filesystem, mounts `/tmp` as tmpfs, and bind-mounts the
-downloads dataset at `/downloads`.
+a read-only root filesystem, disables aria2's console readout so TrueNAS does
+not fill the app log with blank redraw lines, mounts `/tmp` as tmpfs, and
+bind-mounts the downloads dataset at `/downloads`.
 
 If you prefer environment-variable substitution, use
 `examples/truenas-compose.yaml` and provide values for `RPC_SECRET`,

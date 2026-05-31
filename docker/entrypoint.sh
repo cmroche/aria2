@@ -93,5 +93,6 @@ exec_as_target aria2c \
   --log=- \
   --log-level="${ARIA2_LOG_LEVEL}" \
   --console-log-level="${ARIA2_LOG_LEVEL}" \
+  --show-console-readout=false \
   --summary-interval=0 \
   "$@"
