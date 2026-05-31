@@ -17,7 +17,16 @@ cleanup() {
   if [ -n "${HTTP_PID}" ]; then
     kill "${HTTP_PID}" >/dev/null 2>&1 || true
   fi
-  rm -rf "${TMPDIR}"
+  if [ -d "${TMPDIR}" ]; then
+    docker run --rm \
+      --platform "${PLATFORM}" \
+      --user 0:0 \
+      --entrypoint /bin/sh \
+      -v "${TMPDIR}:/work" \
+      "${IMAGE}" \
+      -c 'rm -rf /work/* /work/.[!.]* /work/..?*' >/dev/null 2>&1 || true
+    rmdir "${TMPDIR}" >/dev/null 2>&1 || rm -rf "${TMPDIR}" || true
+  fi
 }
 trap cleanup EXIT
 
@@ -50,8 +59,22 @@ mkdir -p "${TMPDIR}/downloads" "${TMPDIR}/www"
 chmod 0777 "${TMPDIR}/downloads"
 printf "aria2 smoke test\n" > "${TMPDIR}/www/payload.txt"
 
-python3 -m http.server "${HTTP_PORT}" --bind 127.0.0.1 --directory "${TMPDIR}/www" >/tmp/aria2-smoke-http.log 2>&1 &
+python3 -m http.server "${HTTP_PORT}" --bind 0.0.0.0 --directory "${TMPDIR}/www" >/tmp/aria2-smoke-http.log 2>&1 &
 HTTP_PID="$!"
+
+http_ready=""
+for _ in $(seq 1 30); do
+  if curl -fsS "http://127.0.0.1:${HTTP_PORT}/payload.txt" >/dev/null 2>&1; then
+    http_ready=1
+    break
+  fi
+  sleep 1
+done
+
+if [ -z "${http_ready}" ]; then
+  echo "Test HTTP server did not become ready." >&2
+  exit 1
+fi
 
 CID="$(
   docker run -d \
