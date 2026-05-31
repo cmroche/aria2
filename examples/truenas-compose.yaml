@@ -16,7 +16,7 @@ services:
     environment:
       RPC_SECRET: ${RPC_SECRET:?Set RPC_SECRET before deploying}
       PUID: ${PUID:-568}
-      PGID: ${PGID:-568}
+      GUID: ${GUID:-568}
       UMASK: ${UMASK:-0022}
       RPC_PORT: "6800"
       DOWNLOAD_DIR: /downloads
@@ -26,7 +26,7 @@ services:
       - "${HOST_RPC_PORT:-6800}:6800/tcp"
     volumes:
       - type: bind
-        source: ${DOWNLOADS_PATH:-/mnt/<pool>/<dataset>/downloads}
+        source: ${DOWNLOADS_PATH:?Set DOWNLOADS_PATH before deploying}
         target: /downloads
         read_only: false
     tmpfs:

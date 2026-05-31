@@ -27,7 +27,7 @@ ports are exposed.
 ## TrueNAS Custom App deployment
 
 1. Create or choose a downloads dataset, for example
-   `/mnt/DAS/MEDIA/_/torbox`.
+   `/mnt/<pool>/<dataset>/downloads`.
 2. Grant write access to the UID/GID that will run aria2. The default is
    `568:568`, which is the TrueNAS `apps/apps` user and group.
 3. Make the GHCR package public, or configure registry credentials in TrueNAS
@@ -53,8 +53,8 @@ services:
       - no-new-privileges:true
     environment:
       RPC_SECRET: "change-me-to-a-long-random-token"
-      PUID: "100000"
-      PGID: "110000"
+      PUID: "568"
+      GUID: "568"
       UMASK: "0022"
       RPC_PORT: "6800"
       DOWNLOAD_DIR: /downloads
@@ -64,7 +64,7 @@ services:
       - "6800:6800/tcp"
     volumes:
       - type: bind
-        source: /mnt/DAS/MEDIA/_/torbox
+        source: /mnt/<pool>/<dataset>/downloads
         target: /downloads
         read_only: false
     tmpfs:
@@ -80,11 +80,11 @@ bind-mounts the downloads dataset at `/downloads`.
 
 If you prefer environment-variable substitution, use
 `examples/truenas-compose.yaml` and provide values for `RPC_SECRET`,
-`DOWNLOADS_PATH`, `HOST_RPC_PORT`, `PUID`, `PGID`, and `UMASK`.
+`DOWNLOADS_PATH`, `HOST_RPC_PORT`, `PUID`, `PGID`, `GUID`, and `UMASK`.
 
 `PGID` is the preferred group ID variable. `GUID` and `GID` are accepted as
-aliases for compatibility, but avoid `GUID` in new configs because it is often
-used to mean a globally unique identifier rather than a Unix group ID.
+aliases for compatibility, but the sample uses `GUID` because the entrypoint
+accepts it and some TrueNAS configs prefer that naming.
 
 aria2 does not expose a dedicated download-file umask option. This image sets
 the process umask before launching `aria2c`, so restrictive values work as
