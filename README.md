@@ -27,22 +27,48 @@ ports are exposed.
 ## TrueNAS Custom App deployment
 
 1. Create or choose a downloads dataset, for example
-   `/mnt/tank/apps/aria2/downloads`.
+   `/mnt/DAS/MEDIA/_/torbox`.
 2. Grant write access to the UID/GID that will run aria2. The default is
    `568:568`, which is the TrueNAS `apps/apps` user and group.
 3. Make the GHCR package public, or configure registry credentials in TrueNAS
    before deploying a private package.
 4. In TrueNAS, go to **Apps > Discover Apps > more_vert > Install via YAML**.
-5. Paste `examples/truenas-compose.yaml`.
-6. Replace or provide these values before saving:
+5. Paste this YAML, replacing `change-me-to-a-long-random-token` before saving:
 
-```sh
-RPC_SECRET=replace-with-a-long-random-token
-DOWNLOADS_PATH=/mnt/tank/apps/aria2/downloads
-HOST_RPC_PORT=6800
-PUID=568
-PGID=568
-UMASK=0022
+```yaml
+name: aria2
+
+services:
+  aria2:
+    image: ghcr.io/cmroche/aria2:latest
+    pull_policy: always
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RPC_SECRET: "change-me-to-a-long-random-token"
+      PUID: "100000"
+      PGID: "110000"
+      UMASK: "0022"
+      RPC_PORT: "6800"
+      DOWNLOAD_DIR: /downloads
+      ARIA2_LOG_LEVEL: notice
+      TZ: America/Toronto
+    ports:
+      - "6800:6800/tcp"
+    volumes:
+      - type: bind
+        source: /mnt/DAS/MEDIA/_/torbox
+        target: /downloads
+        read_only: false
+    tmpfs:
+      - /tmp:mode=1777,size=64m
 ```
 
 The Compose example starts the entrypoint as root, then immediately launches
@@ -51,9 +77,9 @@ aria2 as `PUID:PGID`. It drops Linux capabilities except the `SETUID` and
 a read-only root filesystem, mounts `/tmp` as tmpfs, and bind-mounts the
 downloads dataset at `/downloads`.
 
-If the TrueNAS YAML editor does not provide external Compose environment
-variables, edit the YAML directly and replace the `${...}` placeholders with
-literal values before clicking Save.
+If you prefer environment-variable substitution, use
+`examples/truenas-compose.yaml` and provide values for `RPC_SECRET`,
+`DOWNLOADS_PATH`, `HOST_RPC_PORT`, `PUID`, `PGID`, and `UMASK`.
 
 `PGID` is the preferred group ID variable. `GUID` and `GID` are accepted as
 aliases for compatibility, but avoid `GUID` in new configs because it is often
