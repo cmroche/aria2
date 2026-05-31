@@ -130,12 +130,25 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
-if [ ! -f "${TMPDIR}/downloads/payload.txt" ]; then
+if ! docker run --rm \
+  --platform "${PLATFORM}" \
+  --user 0:0 \
+  --entrypoint /usr/bin/test \
+  -v "${TMPDIR}/downloads:/downloads:ro" \
+  "${IMAGE}" \
+  -f /downloads/payload.txt; then
   echo "Downloaded payload was not written to /downloads." >&2
   exit 1
 fi
 
-cmp "${TMPDIR}/www/payload.txt" "${TMPDIR}/downloads/payload.txt"
+docker run --rm \
+  --platform "${PLATFORM}" \
+  --user 0:0 \
+  --entrypoint /usr/bin/cmp \
+  -v "${TMPDIR}/www:/www:ro" \
+  -v "${TMPDIR}/downloads:/downloads:ro" \
+  "${IMAGE}" \
+  /www/payload.txt /downloads/payload.txt
 
 payload_stat="$(
   docker run --rm \
