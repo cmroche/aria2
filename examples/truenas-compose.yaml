@@ -5,14 +5,19 @@ services:
     image: ghcr.io/cmroche/aria2:latest
     pull_policy: always
     restart: unless-stopped
-    user: "568:568"
     read_only: true
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     environment:
       RPC_SECRET: ${RPC_SECRET:?Set RPC_SECRET before deploying}
+      PUID: ${PUID:-568}
+      PGID: ${PGID:-568}
+      UMASK: ${UMASK:-0022}
       RPC_PORT: "6800"
       DOWNLOAD_DIR: /downloads
       ARIA2_LOG_LEVEL: ${ARIA2_LOG_LEVEL:-notice}

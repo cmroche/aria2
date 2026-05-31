@@ -5,6 +5,9 @@ IMAGE="${IMAGE:-ghcr.io/cmroche/aria2:latest}"
 PLATFORM="${TEST_PLATFORM:-linux/amd64}"
 RPC_PORT="${TEST_RPC_PORT:-16800}"
 HTTP_PORT="${TEST_HTTP_PORT:-18080}"
+PUID="${TEST_PUID:-10001}"
+PGID="${TEST_PGID:-10002}"
+UMASK="${TEST_UMASK:-0077}"
 TMPDIR="$(mktemp -d)"
 CID=""
 HTTP_PID=""
@@ -81,10 +84,15 @@ CID="$(
     --platform "${PLATFORM}" \
     --add-host=host.docker.internal:host-gateway \
     --cap-drop ALL \
+    --cap-add SETUID \
+    --cap-add SETGID \
     --read-only \
     --security-opt no-new-privileges \
     --tmpfs /tmp:rw,mode=1777,size=64m \
     -e RPC_SECRET=test \
+    -e PUID="${PUID}" \
+    -e PGID="${PGID}" \
+    -e UMASK="${UMASK}" \
     -p "127.0.0.1:${RPC_PORT}:6800" \
     -v "${TMPDIR}/downloads:/downloads" \
     "${IMAGE}"
@@ -128,6 +136,21 @@ if [ ! -f "${TMPDIR}/downloads/payload.txt" ]; then
 fi
 
 cmp "${TMPDIR}/www/payload.txt" "${TMPDIR}/downloads/payload.txt"
+
+payload_stat="$(
+  docker run --rm \
+    --platform "${PLATFORM}" \
+    --user 0:0 \
+    --entrypoint /usr/bin/stat \
+    -v "${TMPDIR}/downloads:/downloads:ro" \
+    "${IMAGE}" \
+    -c '%u:%g %a' /downloads/payload.txt
+)"
+
+if [ "${payload_stat}" != "${PUID}:${PGID} 600" ]; then
+  echo "Unexpected payload owner/mode: ${payload_stat}" >&2
+  exit 1
+fi
 
 magnet_response="$(
   curl -sS \

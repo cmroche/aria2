@@ -65,6 +65,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        gosu \
         libc-ares2 \
         libsqlite3-0 \
         libssh2-1 \
@@ -96,7 +97,5 @@ ENV DOWNLOAD_DIR=/downloads \
 
 VOLUME ["/downloads"]
 EXPOSE 6800/tcp
-
-USER 568:568
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -15,11 +15,11 @@ is still early-release/beta, so this image and Compose example target the
 | --- | --- |
 | Image | `ghcr.io/cmroche/aria2:<tag>` |
 | Architecture | `linux/amd64` |
-| Runtime user | `568:568` (`apps:apps` on TrueNAS) |
+| Runtime user | `PUID:PGID`, defaults to `568:568` (`apps:apps` on TrueNAS) |
 | JSON-RPC port | `6800/tcp` |
 | Downloads mount | `/downloads` |
 | Required environment | `RPC_SECRET` |
-| Optional environment | `RPC_PORT`, `DOWNLOAD_DIR`, `ARIA2_LOG_LEVEL`, `TZ` |
+| Optional environment | `PUID`, `PGID`, `UMASK`, `RPC_PORT`, `DOWNLOAD_DIR`, `ARIA2_LOG_LEVEL`, `TZ` |
 
 No BitTorrent support is compiled into the binary, and no BitTorrent TCP or UDP
 ports are exposed.
@@ -28,8 +28,8 @@ ports are exposed.
 
 1. Create or choose a downloads dataset, for example
    `/mnt/tank/apps/aria2/downloads`.
-2. Grant write access to UID/GID `568:568` on that dataset. In the TrueNAS app
-   UI this is the default `apps/apps` user and group.
+2. Grant write access to the UID/GID that will run aria2. The default is
+   `568:568`, which is the TrueNAS `apps/apps` user and group.
 3. Make the GHCR package public, or configure registry credentials in TrueNAS
    before deploying a private package.
 4. In TrueNAS, go to **Apps > Discover Apps > more_vert > Install via YAML**.
@@ -40,15 +40,30 @@ ports are exposed.
 RPC_SECRET=replace-with-a-long-random-token
 DOWNLOADS_PATH=/mnt/tank/apps/aria2/downloads
 HOST_RPC_PORT=6800
+PUID=568
+PGID=568
+UMASK=0022
 ```
 
-The Compose example runs as `568:568`, drops Linux capabilities, enables
-`no-new-privileges`, uses a read-only root filesystem, mounts `/tmp` as tmpfs,
-and bind-mounts the downloads dataset at `/downloads`.
+The Compose example starts the entrypoint as root, then immediately launches
+aria2 as `PUID:PGID`. It drops Linux capabilities except the `SETUID` and
+`SETGID` permissions needed for that handoff, enables `no-new-privileges`, uses
+a read-only root filesystem, mounts `/tmp` as tmpfs, and bind-mounts the
+downloads dataset at `/downloads`.
 
 If the TrueNAS YAML editor does not provide external Compose environment
 variables, edit the YAML directly and replace the `${...}` placeholders with
 literal values before clicking Save.
+
+`PGID` is the preferred group ID variable. `GUID` and `GID` are accepted as
+aliases for compatibility, but avoid `GUID` in new configs because it is often
+used to mean a globally unique identifier rather than a Unix group ID.
+
+aria2 does not expose a dedicated download-file umask option. This image sets
+the process umask before launching `aria2c`, so restrictive values work as
+expected: `UMASK=0022` creates normal `0644` files and `UMASK=0077` creates
+private `0600` files. `UMASK=0002` does not make normal aria2 downloads
+group-writable because aria2 creates those files from a `0644` base mode.
 
 ## Local build and test
 
@@ -75,6 +90,9 @@ chmod 0777 downloads
 
 docker run --rm \
   -e RPC_SECRET=test \
+  -e PUID="$(id -u)" \
+  -e PGID="$(id -g)" \
+  -e UMASK=0022 \
   -p 6800:6800 \
   -v "$PWD/downloads:/downloads" \
   ghcr.io/cmroche/aria2:dev
