@@ -1,0 +1,7 @@
+.git
+.github
+.DS_Store
+README.md
+THIRD_PARTY_LICENSES.md
+examples
+tests

@@ -1,0 +1,28 @@
+name: aria2
+
+services:
+  aria2:
+    image: ghcr.io/cmroche/aria2:latest
+    pull_policy: always
+    restart: unless-stopped
+    user: "568:568"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      RPC_SECRET: ${RPC_SECRET:?Set RPC_SECRET before deploying}
+      RPC_PORT: "6800"
+      DOWNLOAD_DIR: /downloads
+      ARIA2_LOG_LEVEL: ${ARIA2_LOG_LEVEL:-notice}
+      TZ: ${TZ:-Etc/UTC}
+    ports:
+      - "${HOST_RPC_PORT:-6800}:6800/tcp"
+    volumes:
+      - type: bind
+        source: ${DOWNLOADS_PATH:-/mnt/<pool>/<dataset>/downloads}
+        target: /downloads
+        read_only: false
+    tmpfs:
+      - /tmp:mode=1777,size=64m
