@@ -8,6 +8,9 @@ HTTP_PORT="${TEST_HTTP_PORT:-18080}"
 PUID="${TEST_PUID:-10001}"
 PGID="${TEST_PGID:-10002}"
 UMASK="${TEST_UMASK:-0077}"
+ARIA2_DISK_CACHE="${TEST_ARIA2_DISK_CACHE:-64M}"
+ARIA2_MAX_CONCURRENT_DOWNLOADS="${TEST_ARIA2_MAX_CONCURRENT_DOWNLOADS:-2}"
+ARIA2_MAX_CONNECTION_PER_SERVER="${TEST_ARIA2_MAX_CONNECTION_PER_SERVER:-4}"
 TMPDIR="$(mktemp -d)"
 CID=""
 HTTP_PID=""
@@ -93,6 +96,9 @@ CID="$(
     -e PUID="${PUID}" \
     -e PGID="${PGID}" \
     -e UMASK="${UMASK}" \
+    -e ARIA2_DISK_CACHE="${ARIA2_DISK_CACHE}" \
+    -e ARIA2_MAX_CONCURRENT_DOWNLOADS="${ARIA2_MAX_CONCURRENT_DOWNLOADS}" \
+    -e ARIA2_MAX_CONNECTION_PER_SERVER="${ARIA2_MAX_CONNECTION_PER_SERVER}" \
     -p "127.0.0.1:${RPC_PORT}:6800" \
     -v "${TMPDIR}/downloads:/downloads" \
     "${IMAGE}"
@@ -112,6 +118,38 @@ if [ -z "${version_response:-}" ]; then
   echo "aria2 JSON-RPC did not become ready." >&2
   exit 1
 fi
+
+rpc '{"jsonrpc":"2.0","id":"options","method":"aria2.getGlobalOption","params":["token:test"]}' \
+  | EXPECTED_DISK_CACHE="${ARIA2_DISK_CACHE}" \
+    EXPECTED_MAX_CONCURRENT_DOWNLOADS="${ARIA2_MAX_CONCURRENT_DOWNLOADS}" \
+    EXPECTED_MAX_CONNECTION_PER_SERVER="${ARIA2_MAX_CONNECTION_PER_SERVER}" \
+    python3 -c '
+import json
+import os
+import sys
+
+data = json.load(sys.stdin)["result"]
+expected = {
+    "max-concurrent-downloads": os.environ["EXPECTED_MAX_CONCURRENT_DOWNLOADS"],
+    "max-connection-per-server": os.environ["EXPECTED_MAX_CONNECTION_PER_SERVER"],
+}
+for name, value in expected.items():
+    actual = data.get(name)
+    if actual != value:
+        raise SystemExit(f"{name} expected {value}, got {actual}")
+
+expected_cache = os.environ["EXPECTED_DISK_CACHE"]
+actual_cache = data.get("disk-cache")
+accepted_cache_values = {expected_cache, expected_cache.upper(), expected_cache.lower()}
+if expected_cache[-1:].upper() == "M" and expected_cache[:-1].isdigit():
+    accepted_cache_values.add(str(int(expected_cache[:-1]) * 1024 * 1024))
+elif expected_cache[-1:].upper() == "K" and expected_cache[:-1].isdigit():
+    accepted_cache_values.add(str(int(expected_cache[:-1]) * 1024))
+if actual_cache not in accepted_cache_values:
+    raise SystemExit(f"disk-cache expected {expected_cache}, got {actual_cache}")
+
+print("Configured aria2 options verified.")
+'
 
 gid="$(
   rpc '{"jsonrpc":"2.0","id":"add-http","method":"aria2.addUri","params":["token:test",["http://host.docker.internal:'"${HTTP_PORT}"'/payload.txt"],{"out":"payload.txt"}]}' \

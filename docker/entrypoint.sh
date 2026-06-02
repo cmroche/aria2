@@ -9,6 +9,9 @@ fi
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-/downloads}"
 RPC_PORT="${RPC_PORT:-6800}"
 ARIA2_LOG_LEVEL="${ARIA2_LOG_LEVEL:-notice}"
+ARIA2_DISK_CACHE="${ARIA2_DISK_CACHE:-512M}"
+ARIA2_MAX_CONCURRENT_DOWNLOADS="${ARIA2_MAX_CONCURRENT_DOWNLOADS:-3}"
+ARIA2_MAX_CONNECTION_PER_SERVER="${ARIA2_MAX_CONNECTION_PER_SERVER:-8}"
 PUID="${PUID:-568}"
 PGID="${PGID:-${GUID:-${GID:-568}}}"
 UMASK="${UMASK:-0022}"
@@ -44,6 +47,33 @@ case "${UMASK}" in
     exit 64
     ;;
 esac
+
+case "${ARIA2_MAX_CONCURRENT_DOWNLOADS}" in
+  ''|*[!0-9]*)
+    echo "ARIA2_MAX_CONCURRENT_DOWNLOADS must be a positive integer." >&2
+    exit 64
+    ;;
+  0)
+    echo "ARIA2_MAX_CONCURRENT_DOWNLOADS must be greater than 0." >&2
+    exit 64
+    ;;
+esac
+
+case "${ARIA2_MAX_CONNECTION_PER_SERVER}" in
+  ''|*[!0-9]*)
+    echo "ARIA2_MAX_CONNECTION_PER_SERVER must be a positive integer." >&2
+    exit 64
+    ;;
+  0)
+    echo "ARIA2_MAX_CONNECTION_PER_SERVER must be greater than 0." >&2
+    exit 64
+    ;;
+esac
+
+if ! printf '%s' "${ARIA2_DISK_CACHE}" | grep -Eq '^[0-9]+([KkMm])?$'; then
+  echo "ARIA2_DISK_CACHE must be a size in bytes, K, or M." >&2
+  exit 64
+fi
 
 umask "${UMASK}"
 
@@ -90,6 +120,9 @@ exec_as_target aria2c \
   --save-session-interval=60 \
   --force-save=true \
   --continue=true \
+  --disk-cache="${ARIA2_DISK_CACHE}" \
+  --max-concurrent-downloads="${ARIA2_MAX_CONCURRENT_DOWNLOADS}" \
+  --max-connection-per-server="${ARIA2_MAX_CONNECTION_PER_SERVER}" \
   --log=- \
   --log-level="${ARIA2_LOG_LEVEL}" \
   --console-log-level="${ARIA2_LOG_LEVEL}" \

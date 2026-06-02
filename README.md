@@ -19,7 +19,7 @@ is still early-release/beta, so this image and Compose example target the
 | JSON-RPC port | `6800/tcp` |
 | Downloads mount | `/downloads` |
 | Required environment | `RPC_SECRET` |
-| Optional environment | `PUID`, `PGID`, `UMASK`, `RPC_PORT`, `DOWNLOAD_DIR`, `ARIA2_LOG_LEVEL`, `TZ` |
+| Optional environment | `PUID`, `PGID`, `UMASK`, `RPC_PORT`, `DOWNLOAD_DIR`, `ARIA2_LOG_LEVEL`, `ARIA2_DISK_CACHE`, `ARIA2_MAX_CONCURRENT_DOWNLOADS`, `ARIA2_MAX_CONNECTION_PER_SERVER`, `TZ` |
 
 No BitTorrent support is compiled into the binary, and no BitTorrent TCP or UDP
 ports are exposed.
@@ -59,6 +59,9 @@ services:
       RPC_PORT: "6800"
       DOWNLOAD_DIR: /downloads
       ARIA2_LOG_LEVEL: notice
+      ARIA2_DISK_CACHE: 512M
+      ARIA2_MAX_CONCURRENT_DOWNLOADS: "3"
+      ARIA2_MAX_CONNECTION_PER_SERVER: "8"
       TZ: America/Toronto
     ports:
       - "6800:6800/tcp"
@@ -80,7 +83,9 @@ bind-mounts the downloads dataset at `/downloads`.
 
 If you prefer environment-variable substitution, use
 `examples/truenas-compose.yaml` and provide values for `RPC_SECRET`,
-`DOWNLOADS_PATH`, `HOST_RPC_PORT`, `PUID`, `PGID`, `GUID`, and `UMASK`.
+`DOWNLOADS_PATH`, `HOST_RPC_PORT`, `PUID`, `PGID`, `GUID`, `UMASK`,
+`ARIA2_DISK_CACHE`, `ARIA2_MAX_CONCURRENT_DOWNLOADS`, and
+`ARIA2_MAX_CONNECTION_PER_SERVER`.
 
 `PGID` is the preferred group ID variable. `GUID` and `GID` are accepted as
 aliases for compatibility, but the sample uses `GUID` because the entrypoint
@@ -91,6 +96,12 @@ the process umask before launching `aria2c`, so restrictive values work as
 expected: `UMASK=0022` creates normal `0644` files and `UMASK=0077` creates
 private `0600` files. `UMASK=0002` does not make normal aria2 downloads
 group-writable because aria2 creates those files from a `0644` base mode.
+
+The image defaults to throughput-oriented download settings for fast network
+links: `ARIA2_DISK_CACHE=512M`, `ARIA2_MAX_CONCURRENT_DOWNLOADS=3`, and
+`ARIA2_MAX_CONNECTION_PER_SERVER=8`. Override these environment variables if
+the remote server, storage backend, or dataset workload needs lower or higher
+parallelism.
 
 ## Local build and test
 
@@ -120,6 +131,9 @@ docker run --rm \
   -e PUID="$(id -u)" \
   -e PGID="$(id -g)" \
   -e UMASK=0022 \
+  -e ARIA2_DISK_CACHE=512M \
+  -e ARIA2_MAX_CONCURRENT_DOWNLOADS=3 \
+  -e ARIA2_MAX_CONNECTION_PER_SERVER=8 \
   -p 6800:6800 \
   -v "$PWD/downloads:/downloads" \
   ghcr.io/cmroche/aria2:dev

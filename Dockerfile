@@ -93,6 +93,9 @@ COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 ENV DOWNLOAD_DIR=/downloads \
     RPC_PORT=6800 \
     ARIA2_LOG_LEVEL=notice \
+    ARIA2_DISK_CACHE=512M \
+    ARIA2_MAX_CONCURRENT_DOWNLOADS=3 \
+    ARIA2_MAX_CONNECTION_PER_SERVER=8 \
     TZ=Etc/UTC
 
 VOLUME ["/downloads"]
